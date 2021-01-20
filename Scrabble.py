@@ -10,14 +10,14 @@ import colorsys
 import tkinter as tk
 from tkinter import *
 from tkinter.filedialog import askopenfilename
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageTk, ImageDraw, ImageFont
 import tkinter.simpledialog
 
 n_spaces = 15
 tiles = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P',\
-         'Q','R','S','T','U','V','W','X','Y','Z']
+         'Q','R','S','T','U','V','W','X','Y','Z','?']
 values = [1,  3,  3,  2,  1,  4,  2,  4,  1,  8,  5,  1,  3,  1,  1,  3,\
-          10, 1,  1,  1,  3,  4,  4,  8,  4,  10]
+          10, 1,  1,  1,  3,  4,  4,  8,  4,  10, 0]
 
 print("************************")
 print("* Welcome to Scrabble! *")
@@ -35,6 +35,35 @@ def Get_Definitions():
         complete_dictionary = f.read().split('\n')
         return [word.split('\t')[1] for word in complete_dictionary]
 
+def Create_Tile_Image(tile):
+    partial_tile_image = Image.open("Images/Blank.jpg")
+    value = str(values[tiles.index(tile.upper())])
+
+    text = ImageDraw.Draw(partial_tile_image)
+    tile_font = ImageFont.truetype('Images/times-new-roman.ttf',180)
+    value_font = ImageFont.truetype('Images/times-new-roman.ttf',50)
+    tile_w, tile_h = text.textsize(tile, font=tile_font)
+    value_w, value_h = text.textsize(value, font=value_font)
+
+    text.text((int((partial_tile_image.size[0]-tile_w)/2),\
+               int((partial_tile_image.size[1]-1.25*tile_h)/2)),\
+              tile, (0,0,0), tile_font)
+    text.text((int((partial_tile_image.size[0]+5*value_w)/2),\
+               int((partial_tile_image.size[1]+1.5*1.25*value_h)/2)),\
+              value, (0,0,0), value_font)
+
+    tile_image = Image.new("RGB", (int(partial_tile_image.size[0]*1.04),\
+                                   int(partial_tile_image.size[1]*1.04)))
+    tile_image.paste(partial_tile_image, (int((tile_image.size[0]-partial_tile_image.size[0])/2),\
+                                         int((tile_image.size[1]-partial_tile_image.size[1])/2)))
+
+    tile_resize_scale = 0.14
+    tile_image.thumbnail((tile_resize_scale*tile_image.size[0],\
+                          tile_resize_scale*tile_image.size[1]))
+    
+    return tile_image
+    
+    
 class Space():
         def __init__(self, letter, space_type):
             self.letter = letter
@@ -175,7 +204,8 @@ class Scrabble_Board():
                              'W','W',\
                              'X',\
                              'Y','Y',\
-                             'Z']
+                             'Z',\
+                             '?','?']
 
         #Get the dictionary
         self.dictionary = Get_Dictionary()
@@ -256,10 +286,8 @@ class Scrabble_Board():
 
 class Tile():
     def __init__(self, letter, idxs=None):
-        tile = Image.open(f'Images/Letter_{letter}.png')
-        tile_resize_scale = 0.14
-        tile.thumbnail((tile_resize_scale * tile.size[0], tile_resize_scale * tile.size[1]), Image.ANTIALIAS)
-        self.image_state = tile
+        
+        self.image_state = Create_Tile_Image(letter)
 
         self.idxs = idxs
         
@@ -572,6 +600,9 @@ def Reset_Word(player):
 board = Scrabble_Board()
 human = Player()
 computer = Player()
+
+human.tiles.pop(-1)
+human.tiles.append(Tile('?'))
 
 while board.n_tiles() > 0:
     human.show_tiles()

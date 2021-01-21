@@ -35,7 +35,7 @@ def Get_Definitions():
         complete_dictionary = f.read().split('\n')
         return [word.split('\t')[1] for word in complete_dictionary]
 
-def Create_Tile_Image(tile):
+def Create_Tile_Image(tile, blank=False):
     partial_tile_image = Image.open("Images/Blank.jpg")
     value = str(values[tiles.index(tile.upper())])
 
@@ -45,13 +45,18 @@ def Create_Tile_Image(tile):
     tile_w, tile_h = text.textsize(tile, font=tile_font)
     value_w, value_h = text.textsize(value, font=value_font)
 
-    text.text((int((partial_tile_image.size[0]-tile_w)/2),\
+    if not blank:
+        text.text((int((partial_tile_image.size[0]-tile_w)/2),\
                int((partial_tile_image.size[1]-1.25*tile_h)/2)),\
               tile, (0,0,0), tile_font)
-    text.text((int((partial_tile_image.size[0]+5*value_w)/2),\
-               int((partial_tile_image.size[1]+1.5*1.25*value_h)/2)),\
-              value, (0,0,0), value_font)
-
+        text.text((int((partial_tile_image.size[0]+5*value_w)/2),\
+                   int((partial_tile_image.size[1]+1.5*1.25*value_h)/2)),\
+                  value, (0,0,0), value_font)
+    else:
+        text.text((int((partial_tile_image.size[0]-tile_w)/2),\
+               int((partial_tile_image.size[1]-1.25*tile_h)/2)),\
+              tile, (220,20,60), tile_font)
+        
     tile_image = Image.new("RGB", (int(partial_tile_image.size[0]*1.04),\
                                    int(partial_tile_image.size[1]*1.04)))
     tile_image.paste(partial_tile_image, (int((tile_image.size[0]-partial_tile_image.size[0])/2),\
@@ -62,11 +67,37 @@ def Create_Tile_Image(tile):
                           tile_resize_scale*tile_image.size[1]))
     
     return tile_image
-    
-    
+
+def Replace_Blanks(word_string):
+    QMs = ''
+    if '|' in word_string:
+            QMs = word_string.split('|')[1].upper()
+    word_string = word_string.split('|')[0].upper()
+    for i in range(len(QMs)):
+        word_string = word_string.replace('?',QMs[i],1)
+    return word_string
+
+class Tile():
+    def __init__(self, letter, idxs=None, blank=False):
+        if letter != '':
+            self.is_blank = blank
+            self.image_state = Create_Tile_Image(letter, blank)
+            
+            self.idxs = idxs
+            
+            self.letter = letter.upper()
+            
+            if not blank:
+                self.value = values[tiles.index(self.letter)]
+            else:
+                self.value = 0
+
+    def copy(self):
+        return Tile(self.letter, self.idxs, self.is_blank)
+
 class Space():
-        def __init__(self, letter, space_type):
-            self.letter = letter
+        def __init__(self, tile, space_type):
+            self.tile = tile
             self.space_type = space_type
 
             self.is_empty = True
@@ -83,8 +114,8 @@ class Space():
             elif 'Word':
                 self.word_multiplier = read_multiplier
 
-        def Change(self, letter):
-            self.letter = letter
+        def Change(self, tile):
+            self.tile = tile
             self.is_empty = False
 
 class Scrabble_Board():
@@ -115,69 +146,69 @@ class Scrabble_Board():
         
         ### Improve this? ###
         #Assign unique tiles
-        self.state = [[Space('','') for j in range(n_spaces)] for i in range(n_spaces)]
-        self.state[0][0] = Space('','Triple Word')
-        self.state[7][0] = Space('','Triple Word')
-        self.state[14][0] = Space('','Triple Word')
-        self.state[0][7] = Space('','Triple Word')
-        self.state[7][7] = Space('','Triple Word')
-        self.state[14][7] = Space('','Triple Word')
-        self.state[0][14] = Space('','Triple Word')
-        self.state[7][14] = Space('','Triple Word')
-        self.state[14][14] = Space('','Triple Word')
-        self.state[1][1] = Space('','Double Word')
-        self.state[13][1] = Space('','Double Word')
-        self.state[2][2] = Space('','Double Word')
-        self.state[12][2] = Space('','Double Word')
-        self.state[3][3] = Space('','Double Word')
-        self.state[11][3] = Space('','Double Word')
-        self.state[4][4] = Space('','Double Word')
-        self.state[10][4] = Space('','Double Word')
-        self.state[7][7] = Space('','Double Word')
-        self.state[4][10] = Space('','Double Word')
-        self.state[10][10] = Space('','Double Word')
-        self.state[3][11] = Space('','Double Word')
-        self.state[11][11] = Space('','Double Word')
-        self.state[2][12] = Space('','Double Word')
-        self.state[12][12] = Space('','Double Word')
-        self.state[1][13] = Space('','Double Word')
-        self.state[13][13] = Space('','Double Word')
-        self.state[5][1] = Space('','Triple Letter')
-        self.state[9][1] = Space('','Triple Letter')
-        self.state[1][5] = Space('','Triple Letter')
-        self.state[5][5] = Space('','Triple Letter')
-        self.state[9][5] = Space('','Triple Letter')
-        self.state[13][5] = Space('','Triple Letter')
-        self.state[1][9] = Space('','Triple Letter')
-        self.state[5][9] = Space('','Triple Letter')
-        self.state[9][9] = Space('','Triple Letter')
-        self.state[13][9] = Space('','Triple Letter')
-        self.state[5][13] = Space('','Triple Letter')
-        self.state[9][13] = Space('','Triple Letter')
-        self.state[3][0] = Space('','Double Letter')
-        self.state[11][0] = Space('','Double Letter')
-        self.state[6][2] = Space('','Double Letter')
-        self.state[8][2] = Space('','Double Letter')
-        self.state[0][3] = Space('','Double Letter')
-        self.state[7][3] = Space('','Double Letter')
-        self.state[14][3] = Space('','Double Letter')
-        self.state[2][6] = Space('','Double Letter')
-        self.state[6][6] = Space('','Double Letter')
-        self.state[8][6] = Space('','Double Letter')
-        self.state[12][6] = Space('','Double Letter')
-        self.state[3][7] = Space('','Double Letter')
-        self.state[11][7] = Space('','Double Letter')
-        self.state[12][8] = Space('','Double Letter')
-        self.state[8][8] = Space('','Double Letter')
-        self.state[6][8] = Space('','Double Letter')
-        self.state[2][8] = Space('','Double Letter')
-        self.state[14][11] = Space('','Double Letter')
-        self.state[7][11] = Space('','Double Letter')
-        self.state[0][11] = Space('','Double Letter')
-        self.state[8][12] = Space('','Double Letter')
-        self.state[6][12] = Space('','Double Letter')
-        self.state[11][14] = Space('','Double Letter')
-        self.state[3][14] = Space('','Double Letter')
+        self.state = [[Space(Tile(''),'') for j in range(n_spaces)] for i in range(n_spaces)]
+        self.state[0][0] = Space(Tile(''),'Triple Word')
+        self.state[7][0] = Space(Tile(''),'Triple Word')
+        self.state[14][0] = Space(Tile(''),'Triple Word')
+        self.state[0][7] = Space(Tile(''),'Triple Word')
+        self.state[7][7] = Space(Tile(''),'Triple Word')
+        self.state[14][7] = Space(Tile(''),'Triple Word')
+        self.state[0][14] = Space(Tile(''),'Triple Word')
+        self.state[7][14] = Space(Tile(''),'Triple Word')
+        self.state[14][14] = Space(Tile(''),'Triple Word')
+        self.state[1][1] = Space(Tile(''),'Double Word')
+        self.state[13][1] = Space(Tile(''),'Double Word')
+        self.state[2][2] = Space(Tile(''),'Double Word')
+        self.state[12][2] = Space(Tile(''),'Double Word')
+        self.state[3][3] = Space(Tile(''),'Double Word')
+        self.state[11][3] = Space(Tile(''),'Double Word')
+        self.state[4][4] = Space(Tile(''),'Double Word')
+        self.state[10][4] = Space(Tile(''),'Double Word')
+        self.state[7][7] = Space(Tile(''),'Double Word')
+        self.state[4][10] = Space(Tile(''),'Double Word')
+        self.state[10][10] = Space(Tile(''),'Double Word')
+        self.state[3][11] = Space(Tile(''),'Double Word')
+        self.state[11][11] = Space(Tile(''),'Double Word')
+        self.state[2][12] = Space(Tile(''),'Double Word')
+        self.state[12][12] = Space(Tile(''),'Double Word')
+        self.state[1][13] = Space(Tile(''),'Double Word')
+        self.state[13][13] = Space(Tile(''),'Double Word')
+        self.state[5][1] = Space(Tile(''),'Triple Letter')
+        self.state[9][1] = Space(Tile(''),'Triple Letter')
+        self.state[1][5] = Space(Tile(''),'Triple Letter')
+        self.state[5][5] = Space(Tile(''),'Triple Letter')
+        self.state[9][5] = Space(Tile(''),'Triple Letter')
+        self.state[13][5] = Space(Tile(''),'Triple Letter')
+        self.state[1][9] = Space(Tile(''),'Triple Letter')
+        self.state[5][9] = Space(Tile(''),'Triple Letter')
+        self.state[9][9] = Space(Tile(''),'Triple Letter')
+        self.state[13][9] = Space(Tile(''),'Triple Letter')
+        self.state[5][13] = Space(Tile(''),'Triple Letter')
+        self.state[9][13] = Space(Tile(''),'Triple Letter')
+        self.state[3][0] = Space(Tile(''),'Double Letter')
+        self.state[11][0] = Space(Tile(''),'Double Letter')
+        self.state[6][2] = Space(Tile(''),'Double Letter')
+        self.state[8][2] = Space(Tile(''),'Double Letter')
+        self.state[0][3] = Space(Tile(''),'Double Letter')
+        self.state[7][3] = Space(Tile(''),'Double Letter')
+        self.state[14][3] = Space(Tile(''),'Double Letter')
+        self.state[2][6] = Space(Tile(''),'Double Letter')
+        self.state[6][6] = Space(Tile(''),'Double Letter')
+        self.state[8][6] = Space(Tile(''),'Double Letter')
+        self.state[12][6] = Space(Tile(''),'Double Letter')
+        self.state[3][7] = Space(Tile(''),'Double Letter')
+        self.state[11][7] = Space(Tile(''),'Double Letter')
+        self.state[12][8] = Space(Tile(''),'Double Letter')
+        self.state[8][8] = Space(Tile(''),'Double Letter')
+        self.state[6][8] = Space(Tile(''),'Double Letter')
+        self.state[2][8] = Space(Tile(''),'Double Letter')
+        self.state[14][11] = Space(Tile(''),'Double Letter')
+        self.state[7][11] = Space(Tile(''),'Double Letter')
+        self.state[0][11] = Space(Tile(''),'Double Letter')
+        self.state[8][12] = Space(Tile(''),'Double Letter')
+        self.state[6][12] = Space(Tile(''),'Double Letter')
+        self.state[11][14] = Space(Tile(''),'Double Letter')
+        self.state[3][14] = Space(Tile(''),'Double Letter')
 
         self.bag_of_tiles = ['A','A','A','A','A','A','A','A','A',\
                              'B','B',\
@@ -284,29 +315,25 @@ class Scrabble_Board():
         else:
             self.canvas.itemconfig(self.potential_points, text=f"")
 
-class Tile():
-    def __init__(self, letter, idxs=None):
-        
-        self.image_state = Create_Tile_Image(letter)
-
-        self.idxs = idxs
-        
-        self.letter = letter.upper()
-        
-        self.value = values[tiles.index(self.letter)]
-
-    def copy(self):
-        return Tile(self.letter, self.idxs)
-
 class Word():
     def __init__(self, word_string, first_idxs, direction):
-        self.word_string = word_string.upper()
+        QMs = ''
+        if '|' in word_string:
+            QMs = word_string.split('|')[1].upper()
+        blank_idxs = [pos for pos, char in enumerate(word_string) if char == '?']
+
+        self.QMs = QMs
+        self.word_string = word_string.split('|')[0]
+        
         self.first_idxs = first_idxs
         self.direction = direction
         
         self.tiles = []
-        for i in range(len(list(word_string))):
-            tile = Tile(list(word_string)[i], None)
+        for i in range(len(list(self.word_string))):
+            if i in blank_idxs:
+                tile = Tile(list(Replace_Blanks(word_string))[i], None, blank=True)
+            else:
+                tile = Tile(list(self.word_string)[i], None)
             if direction == "right":
                 tile.idxs = (first_idxs[0], first_idxs[1] + i)
             else:
@@ -347,7 +374,12 @@ class Player():
         self.n_played_words = len(self.played_words)
 
     def show_tiles(self, used_tiles=[]):
-        used_tile_letters = [tile.letter for tile in used_tiles]
+        used_tile_letters = []
+        for tile in used_tiles:
+            if not tile.is_blank:
+                used_tile_letters.append(tile.letter)
+            else:
+                used_tile_letters.append('?')
         for i in range(len(self.tiles)):
             tile = self.tiles[i].copy()
             if tile.letter in used_tile_letters:
@@ -366,13 +398,19 @@ class Player():
             random_idx = random.randrange(board.n_tiles())
             tile_letter = board.bag_of_tiles[random_idx]
             board.bag_of_tiles.pop(random_idx)
-            tiles.append(Tile(tile_letter))
+            if tile_letter != '?':
+                tiles.append(Tile(tile_letter))
+            else:
+                tiles.append(Tile(tile_letter, blank=True))
         return tiles
 
     def refresh_tiles(self, input_word):
         for tile in input_word.new_tiles:
             current_letters = [tile.letter for tile in self.tiles]
-            self.tiles.pop(current_letters.index(tile.letter))
+            if not tile.is_blank:
+                self.tiles.pop(current_letters.index(tile.letter))
+            else:
+                self.tiles.pop(current_letters.index('?'))
         self.tiles += self.pick_tiles(len(input_word.new_tiles))
 
 def Calculate_Points(created_words):
@@ -381,19 +419,49 @@ def Calculate_Points(created_words):
         points += word.value
     return points
 
-def Check_if_Tiles_in_Player_Tiles(input_letters):
+def Check_if_Tiles_in_Player_Tiles(input_tiles):
     player_letters = [tile.letter for tile in human.tiles]
-    for letter in input_letters:
-        if letter not in player_letters:
-            return False
-        player_letters.remove(letter)
+    for tile in input_tiles:
+        if not tile.is_blank:
+            if tile.letter not in player_letters:
+                return False
+            player_letters.remove(tile.letter)
+        else:
+            if '?' not in player_letters:
+                return False
+            player_letters.remove('?')
     return True
 
 def Get_Created_Words(input_word):
     created_words = []
-    created_words.append(input_word)
+    input_word_string = ''
+    for tile in input_word.tiles:
+        if not '|' in input_word_string:
+            insert_idx = len(input_word_string)
+        else:
+            insert_idx = input_word_string.index('|')
+        if board.state[tile.idxs[0]][tile.idxs[1]].is_empty:
+            if not tile.is_blank:
+                input_word_string = input_word_string[:insert_idx] + tile.letter + input_word_string[insert_idx:]
+            else:
+                input_word_string = input_word_string[:insert_idx] + '?' + input_word_string[insert_idx:]
+                if not '|' in input_word_string:
+                    input_word_string += f'|{tile.letter}'
+                else:
+                    input_word_string += f'{tile.letter}'
+        else:
+            if not board.state[tile.idxs[0]][tile.idxs[1]].tile.is_blank:
+                input_word_string = input_word_string[:insert_idx] + tile.letter + input_word_string[insert_idx:]
+            else:
+                input_word_string = input_word_string[:insert_idx] + '?' + input_word_string[insert_idx:]
+                if not '|' in input_word_string:
+                    input_word_string += f'|{tile.letter}'
+                else:
+                    input_word_string += f'{tile.letter}'
+    created_words.append(Word(input_word_string, input_word.first_idxs, input_word.direction))
+    
+    QMs = ''
     for tile in input_word.new_tiles:
-        
         if input_word.direction == "right":
             i_idxs = [-1, 1]
             if tile.idxs[0] == 0:
@@ -410,10 +478,20 @@ def Get_Created_Words(input_word):
                         idx_iter_stop += 1
                     for idx in range(-idx_iter_start, idx_iter_stop + 1): 
                         if idx == 0:
-                            created_word += tile.letter
+                            if not tile.is_blank:
+                                created_word += tile.letter
+                            else:
+                                created_word += '?'
+                                QMs += tile.letter
                         else:
-                            created_word += board.state[tile.idxs[0] + idx][tile.idxs[1]].letter 
-                    created_words.append(Word(created_word, (tile.idxs[0] - idx_iter_start, tile.idxs[1]), direction="down"))
+                            if not tile.is_blank:
+                                created_word += board.state[tile.idxs[0] + idx][tile.idxs[1]].tile.letter
+                            else:
+                                created_word += '?'
+                                QMs += board.state[tile.idxs[0] + idx][tile.idxs[1]].tile.letter
+                    created_word += '|{QMs}'
+                    created_words.append(Word(created_word,\
+                                              (tile.idxs[0] - idx_iter_start, tile.idxs[1]), direction="down"))
                     break
         else:
             j_idxs = [-1, 1]
@@ -431,10 +509,20 @@ def Get_Created_Words(input_word):
                         idx_iter_stop += 1
                     for idx in range(-idx_iter_start, idx_iter_stop + 1):
                         if idx == 0:
-                            created_word += tile.letter
+                            if not tile.is_blank:
+                                created_word += tile.letter
+                            else:
+                                created_word += '?'
+                                QMs += tile.letter
                         else:
-                            created_word += board.state[tile.idxs[0]][tile.idxs[1] + idx].letter 
-                    created_words.append(Word(created_word, (tile.idxs[0], tile.idxs[1] - idx_iter_start), direction="right"))
+                            if not tile.is_blank:
+                                created_word += board.state[tile.idxs[0]][tile.idxs[1] + idx].tile.letter
+                            else:
+                                created_word += '?'
+                                QMs += board.state[tile.idxs[0]][tile.idxs[1] + idx].tile.letter
+                    created_word += f'|{QMs}'
+                    created_words.append(Word(created_word,\
+                                              (tile.idxs[0], tile.idxs[1] - idx_iter_start), direction="right"))
                     break
 
     return created_words
@@ -444,14 +532,14 @@ def Check_Board_Validity(word_string, first_idxs, direction):
         tile_idxs = [(first_idxs[0], first_idxs[1] + i) for i in range(len(word_string))]
     else:
         tile_idxs = [(first_idxs[0] + i, first_idxs[1]) for i in range(len(word_string))]
-        
+
     return all(elem in [(i,j) for i in range(n_spaces) for j in range(n_spaces)] for elem in tile_idxs)
 
 def Check_Validity(input_word, created_words):
     validity = False
     used_spaces = [tile.idxs for tile in input_word.tiles]
-
-    if not Check_if_Tiles_in_Player_Tiles([tile.letter for tile in input_word.new_tiles]):
+    
+    if not Check_if_Tiles_in_Player_Tiles([tile for tile in input_word.new_tiles]):
         return False
     if board.number_of_words == 0:
         if (7,7) not in used_spaces:
@@ -459,14 +547,14 @@ def Check_Validity(input_word, created_words):
         else:
             return True
     else:
-        created_word_strings = [word.word_string for word in created_words]
+        created_word_strings = [Replace_Blanks(f'{word.word_string}|word.QMs') for word in created_words]
         if not all(elem in board.dictionary for elem in created_word_strings):
             return False
         intersects_correctly = False
         if len(input_word.new_tiles) != len(input_word.tiles):
             for tile in input_word.tiles:
                 if not board.state[tile.idxs[0]][tile.idxs[1]].is_empty:
-                    intersects_correctly = intersects_correctly or tile.letter == board.state[tile.idxs[0]][tile.idxs[1]].letter
+                    intersects_correctly = intersects_correctly or tile.letter == board.state[tile.idxs[0]][tile.idxs[1]].tile.letter
         touches = len(created_words) > 1
         if not (intersects_correctly or touches):
             return False
@@ -474,7 +562,7 @@ def Check_Validity(input_word, created_words):
     return True
             
 def Lock_Word(input_word, player, points):
-    Place_Ghost_Word(input_word.word_string, input_word.first_idxs, input_word.direction, player, Locked = True)
+    Place_Ghost_Word(input_word.word_string + '|' + input_word.QMs, input_word.first_idxs, input_word.direction, player, Locked = True)
     board.canvas.unbind("<Button 1>")
     root.unbind("<Right>")
     root.unbind("<Down>")
@@ -488,7 +576,7 @@ def Lock_Word(input_word, player, points):
 def Place_Ghost_Word(word_string, first_idxs, direction, player, Locked = False):
     board.Reset_Image_with_Back_Up()
 
-    if not Check_Board_Validity(word_string, first_idxs, direction):
+    if not Check_Board_Validity(word_string.split('|'), first_idxs, direction):
         print("Your word will not fit on the board at that position. Please pick another.")
         return
 
@@ -503,17 +591,43 @@ def Place_Ghost_Word(word_string, first_idxs, direction, player, Locked = False)
     tiles = []
     if not validity:
         for tile in input_word.tiles:
-            copy_of_tile = tile.copy()
-            hue = Image.new('RGBA', copy_of_tile.image_state.size, 'red')
-            copy_of_tile.image_state = Image.blend(copy_of_tile.image_state.convert('RGBA'), hue, 0.5)
-            tiles.append(copy_of_tile)
+            if board.state[tile.idxs[0]][tile.idxs[1]].is_empty:
+                copy_of_tile = tile.copy()
+                hue = Image.new('RGBA', copy_of_tile.image_state.size, 'red')
+                copy_of_tile.image_state = Image.blend(copy_of_tile.image_state.convert('RGBA'), hue, 0.5)
+                tiles.append(copy_of_tile)
+            else:
+                if not board.state[tile.idxs[0]][tile.idxs[1]].tile.is_blank:
+                    copy_of_tile = tile.copy()
+                    hue = Image.new('RGBA', copy_of_tile.image_state.size, 'red')
+                    copy_of_tile.image_state = Image.blend(copy_of_tile.image_state.convert('RGBA'), hue, 0.5)
+                    tiles.append(copy_of_tile)
+                else:
+                    copy_of_tile = Tile(tile.letter, tile.idxs, blank=True)
+                    hue = Image.new('RGBA', copy_of_tile.image_state.size, 'red')
+                    copy_of_tile.image_state = Image.blend(copy_of_tile.image_state.convert('RGBA'), hue, 0.5)
+                    tiles.append(copy_of_tile)
     else:
         for tile in input_word.tiles:
-            copy_of_tile = tile.copy()
-            if not Locked:
-                hue = Image.new('RGBA', copy_of_tile.image_state.size, (147,235,148))
-                copy_of_tile.image_state = Image.blend(copy_of_tile.image_state.convert('RGBA'), hue, 0.5)
-            tiles.append(copy_of_tile)
+            if board.state[tile.idxs[0]][tile.idxs[1]].is_empty:
+                copy_of_tile = tile.copy()
+                if not Locked:
+                    hue = Image.new('RGBA', copy_of_tile.image_state.size, (147,235,148))
+                    copy_of_tile.image_state = Image.blend(copy_of_tile.image_state.convert('RGBA'), hue, 0.5)
+                tiles.append(copy_of_tile)
+            else:
+                if not board.state[tile.idxs[0]][tile.idxs[1]].tile.is_blank:
+                    copy_of_tile = tile.copy()
+                    if not Locked:
+                        hue = Image.new('RGBA', copy_of_tile.image_state.size, (147,235,148))
+                        copy_of_tile.image_state = Image.blend(copy_of_tile.image_state.convert('RGBA'), hue, 0.5)
+                    tiles.append(copy_of_tile)
+                else:
+                    copy_of_tile = Tile(tile.letter, tile.idxs, blank=True)
+                    if not Locked:
+                        hue = Image.new('RGBA', copy_of_tile.image_state.size, (147,235,148))
+                        copy_of_tile.image_state = Image.blend(copy_of_tile.image_state.convert('RGBA'), hue, 0.5)
+                    tiles.append(copy_of_tile)
             
     for tile in tiles:
         board.board_image_state.paste(tile.image_state,\
@@ -560,7 +674,16 @@ def Get_Word(player):
     word_string_validity = False
     while not word_string_validity:
         word_string = input("What word would you like to play?\n")
-        word_string_validity = word_string.upper() in board.dictionary
+        word_string += '|'
+
+        replacement_strings = ['1st','2nd']
+        for i in range(word_string.count('?')):
+            if word_string.count('?') == 1:
+                word_string += input("What tile would you like your blank tile to represent? ")
+            else:
+                word_string += input("What tile would you like your {replacement_strings[i]} blank tile to represent? ")
+
+        word_string_validity = Replace_Blanks(word_string) in board.dictionary
         if not word_string_validity:
             print("Your word is not in the offical Scrabble dictionary.")
     reset_button["state"] = "normal"
@@ -577,7 +700,7 @@ def Finish_Turn(player):
     board.Update_Potential_Points(0, hide=True)
     
     for tile in player.played_words[-1][0].tiles:
-        board.state[tile.idxs[0]][tile.idxs[1]].Change(tile.letter)
+        board.state[tile.idxs[0]][tile.idxs[1]].Change(tile)
         
     board.number_of_words += 1
     player.score += player.played_words[-1][1]
@@ -602,7 +725,7 @@ human = Player()
 computer = Player()
 
 human.tiles.pop(-1)
-human.tiles.append(Tile('?'))
+human.tiles.append(Tile('?',blank=True))
 
 while board.n_tiles() > 0:
     human.show_tiles()

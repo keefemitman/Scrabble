@@ -489,7 +489,7 @@ def Get_Created_Words(input_word):
                             else:
                                 created_word += '?'
                                 QMs += board.state[tile.idxs[0] + idx][tile.idxs[1]].tile.letter
-                    created_word += '|{QMs}'
+                    created_word += f'|{QMs}'
                     created_words.append(Word(created_word,\
                                               (tile.idxs[0] - idx_iter_start, tile.idxs[1]), direction="down"))
                     break
@@ -547,7 +547,7 @@ def Check_Validity(input_word, created_words):
         else:
             return True
     else:
-        created_word_strings = [Replace_Blanks(f'{word.word_string}|word.QMs') for word in created_words]
+        created_word_strings = [Replace_Blanks(f'{word.word_string}|{word.QMs}') for word in created_words]
         if not all(elem in board.dictionary for elem in created_word_strings):
             return False
         intersects_correctly = False
@@ -576,7 +576,7 @@ def Lock_Word(input_word, player, points):
 def Place_Ghost_Word(word_string, first_idxs, direction, player, Locked = False):
     board.Reset_Image_with_Back_Up()
 
-    if not Check_Board_Validity(word_string.split('|'), first_idxs, direction):
+    if not Check_Board_Validity(word_string.split('|')[0], first_idxs, direction):
         print("Your word will not fit on the board at that position. Please pick another.")
         return
 
@@ -681,7 +681,7 @@ def Get_Word(player):
             if word_string.count('?') == 1:
                 word_string += input("What tile would you like your blank tile to represent? ")
             else:
-                word_string += input("What tile would you like your {replacement_strings[i]} blank tile to represent? ")
+                word_string += input(f"What tile would you like your {replacement_strings[i]} blank tile to represent? ")
 
         word_string_validity = Replace_Blanks(word_string) in board.dictionary
         if not word_string_validity:
@@ -723,9 +723,6 @@ def Reset_Word(player):
 board = Scrabble_Board()
 human = Player()
 computer = Player()
-
-human.tiles.pop(-1)
-human.tiles.append(Tile('?',blank=True))
 
 while board.n_tiles() > 0:
     human.show_tiles()

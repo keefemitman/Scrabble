@@ -28,12 +28,12 @@ root = Tk()
 def Get_Dictionary():
     with open('Dictionary.txt', 'r') as f:
         complete_dictionary = f.read().split('\n')
-        return [word.split('\t')[0] for word in complete_dictionary]
+        return [word.split('\t')[0] for word in complete_dictionary][:-1]
 
 def Get_Definitions():
     with open('Dictionary.txt', 'r') as f:
         complete_dictionary = f.read().split('\n')
-        return [word.split('\t')[1] for word in complete_dictionary]
+        return [word.split('\t')[1] for word in complete_dictionary][:-1]
 
 def Create_Tile_Image(tile, blank=False):
     partial_tile_image = Image.open("Images/Blank.jpg")
@@ -240,7 +240,7 @@ class Scrabble_Board():
 
         #Get the dictionary
         self.dictionary = Get_Dictionary()
-        self.definitions = Get_Definitions()
+        #self.definitions = Get_Definitions()
         
         #Add the players
         self.canvas.create_text(200,770,fill="darkblue",font="Times 20 italic bold",
@@ -535,11 +535,11 @@ def Check_Board_Validity(word_string, first_idxs, direction):
 
     return all(elem in [(i,j) for i in range(n_spaces) for j in range(n_spaces)] for elem in tile_idxs)
 
-def Check_Validity(input_word, created_words):
+def Check_Validity(input_word, created_words, is_computer = True):
     validity = False
     used_spaces = [tile.idxs for tile in input_word.tiles]
     
-    if not Check_if_Tiles_in_Player_Tiles([tile for tile in input_word.new_tiles]):
+    if not is_computer and not Check_if_Tiles_in_Player_Tiles([tile for tile in input_word.new_tiles]):
         return False
     if board.number_of_words == 0:
         if (7,7) not in used_spaces:
@@ -644,7 +644,22 @@ def Place_Ghost_Word(word_string, first_idxs, direction, player, Locked = False)
     else:
         board.Update_Potential_Points(0, hide=True)
         root.unbind("<Return>")
+
+def Place_Computer_Word(word_string, first_idxs, direction, player):
+    board.Reset_Image_with_Back_Up()
+
+    input_word = Word(word_string, first_idxs, direction)
     
+    created_words = Get_Created_Words(input_word)
+        
+    tiles = input_word.tiles        
+    for tile in tiles:
+        board.board_image_state.paste(tile.image_state,\
+                                      board.plotting_centers[tile.idxs[0]][tile.idxs[1]])
+    
+    points = Calculate_Points(created_words)
+    player.played_words.append((input_word, points))
+        
 def Get_Details_for_Word(event, word_string, player):
     def Convert_Click_to_Plot_Center(point):
         def Radial_Distance(point_A, point_B):
@@ -701,6 +716,7 @@ def Finish_Turn(player):
     
     for tile in player.played_words[-1][0].tiles:
         board.state[tile.idxs[0]][tile.idxs[1]].Change(tile)
+    board.Back_Up_Image()
         
     board.number_of_words += 1
     player.score += player.played_words[-1][1]
@@ -719,16 +735,99 @@ def Reset_Word(player):
     root.unbind("<Down>")
     root.unbind("<Return>")
     Get_Word(human)
+
+def Get_Playable_Words(player):
+    playable_words = []
+    
+    letters = [tile.letter for tile in player.tiles]
+    print(letters)
+    
+    words_from_tiles = []
+    for word in board.dictionary:
+        word_is_valid = True
+        copy_of_letters = letters.copy()
+        for letter in list(word):
+            if letter in copy_of_letters:
+                copy_of_letters.remove(letter)
+            elif '?' in copy_of_letters:
+                copy_of_letters.remove('?')
+            else:
+                word_is_valid = False
+                break
+        if word_is_valid:
+            words_from_tiles.append(word)
+
+    print(words_from_tiles)
+
+    valid_columns = []
+    valid_rows = []
+
+    if board.number_of_words == 0:
+        valid_rows.append(7)
+        valid_columns.append(7)
+    else:
+        for row in range(n_spaces):
+            for column in range(n_spaces):
+                if not board.state[row][column].is_empty:
+                    for i in [row - 1, row, row + 1]:
+                        if not i in valid_rows and i != -1 and i!= 15:
+                            valid_rows.append(i)
+                    for i in [column - 1, column, column + 1]:
+                        if not i in valid_columns and i != -1 and i!= 15:
+                            valid_columns.append(i)
+                            
+    print(valid_rows)
+    print(valid_columns)
+            
+    for row in range(n_spaces):
+        for column in range(n_spaces):
+            print(row, column)
+            if not row in valid_rows and not column in valid_columns:
+                continue
+            if not board.state[row][column].is_empty:
+                continue
+            for word in words_from_tiles:
+                for direction in ["right","down"]:
+                    #print(word, (column,row), direction)
+                    if not Check_Board_Validity(word, (row, column), direction):
+                        #print("failed board")
+                        continue
+                    input_word = Word(word, (row, column), direction)
+                    created_words = Get_Created_Words(input_word)
+                    #print([word.word_string for word in created_words])
+                    if Check_Validity(input_word, created_words, is_computer = True):
+                        #print("valid!")
+                        playable_words.append((input_word, Calculate_Points(created_words)))
+    
+    #word using tiles on board
+    #for each played tile, find the usable space around it, then only look for words that fit
+
+    return playable_words
+    
+def Play_Computer_Word(computer):
+    playable_words = Get_Playable_Words(computer)
+    scores = [word[1] for word in playable_words]
+    print(scores)
+
+    top_word = playable_words[np.argmax(np.array(scores))][0]
+    top_score = playable_words[np.argmax(np.array(scores))][1]
+
+    print(Replace_Blanks(top_word.word_string), top_word.first_idxs, top_word.direction, top_score)
+
+    Place_Computer_Word(top_word.word_string + '|' + top_word.QMs, top_word.first_idxs, top_word.direction, computer)
     
 board = Scrabble_Board()
 human = Player()
 computer = Player()
 
-while board.n_tiles() > 0:
+#while board.n_tiles() > 0:
+for i in range(1):
     human.show_tiles()
     board.Update_Scores(human.score, computer.score)
 
     print(f"Number of Remaining Tiles: {board.n_tiles()}")
+    
+    print("\nPlayer Turn Commencing!\n")
 
     word_confirmed = tk.IntVar()
     reset_button = tk.Button(root, text="Reset Word", command=lambda: Reset_Word(human))
@@ -743,7 +842,15 @@ while board.n_tiles() > 0:
     
     reset_button.place_forget()
     confirm_button.place_forget()
+
+    human.show_tiles()
+    board.Update_Scores(human.score, computer.score)
+
+    print(f"Number of Remaining Tiles: {board.n_tiles()}")
     
-    print("\nNext Turn Commencing!\n")
+    print("\nComputer Turn Commencing!\n")
+
+    Play_Computer_Word(computer)
+    Finish_Turn(computer)
 
 root.mainloop()
